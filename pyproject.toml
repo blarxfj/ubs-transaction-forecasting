@@ -1,0 +1,45 @@
+[project]
+name = "ubs-transaction-forecasting"
+version = "0.1.0"
+description = "Deterministic recurring merchant-family forecasting"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "lightgbm==4.7.0",
+  "numpy==2.5.3",
+  "pandas==3.0.6",
+  "pyarrow==25.0.1",
+  "scikit-learn==1.9.1",
+  "scipy==1.18.1",
+]
+
+[project.scripts]
+ubs-forecast = "ubs_forecasting.cli:main"
+
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+  "pytest==9.0.2",
+  "ruff==0.14.13",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ubs_forecasting"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "full_data: requires the private challenge dataset via UBS_DATA_DIR",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = ["ubs_baseline.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
