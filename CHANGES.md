@@ -121,8 +121,10 @@ Per seed on the 791 validation-only clients, iteration 3 makes about 147 family-
 - Everything above was selected on development out-of-fold data only; the pseudo-label rule was
   checked against the real label distribution before any protocol run.
 - The lockbox was scored by the final run of the retained recipe. Because the recipe is
-  iteration 3's, the lockbox probabilities equal iteration 3's; an earlier end-to-end equality
-  check of the refactored code also produced these identical files. No differently configured
-  model was ever scored on the lockbox in this iteration.
-- Determinism: the final run reproduces iteration 3's `submission.csv` byte for byte; its SHA-256
-  is recorded in [deliverables/README.md](deliverables/README.md).
+  iteration 3's, the lockbox probabilities equal iteration 3's; an end-to-end equality check of
+  the refactored code before the final commit and the determinism refit after it produced the
+  same identical files. No differently configured model was ever scored on the lockbox in this
+  iteration.
+- Determinism: the final run and a test-only refit under a different `PYTHONHASHSEED` reproduce
+  iteration 3's `submission.csv` byte for byte; the SHA-256 is recorded in
+  [deliverables/README.md](deliverables/README.md).

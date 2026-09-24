@@ -13,8 +13,11 @@ commit recorded in `metrics.json` (`git_revision`), with the frozen recipe in
 | `submission.csv` | 1,000 | contract-valid submission (`client_id,predicted_next_recurring_merchant`) |
 | `metrics.json` | | protocol scores with bootstrap intervals, per-class F1, recipe, data hashes |
 
-Two independent runs (the second under a different `PYTHONHASHSEED`) produced byte-identical
-`submission.csv` with SHA-256:
+The recipe is iteration 3's, retained after the improvement round described in `CHANGES.md`, so
+every table here is byte-identical to iteration 3's deliverables. Three runs of this branch's code
+(a full run before the final commit, the final run, and a test-only refit under a different
+`PYTHONHASHSEED`) produced byte-identical `submission.csv`, `lockbox.csv`, and `test_proba.csv`;
+the submission SHA-256 is:
 
 ```text
 092cdd3f1e56c439ca5a0e70d8d212b1feb1a36f3a3ff53a75c136b79fe0d345

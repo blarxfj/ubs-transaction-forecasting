@@ -318,7 +318,7 @@
       "streaming": 92
     }
   },
-  "git_revision": "82d16c8995804c7803bc68d0dab3992db6f171f3",
+  "git_revision": "17a1917941337efc358e097a15b03f204daecedc",
   "recipe": {
     "drop": [
       "p_gap_last1",
@@ -344,6 +344,7 @@
       1,
       2
     ],
+    "pseudo_views": [],
     "train_views": [
       "trainT",
       "trainV"
@@ -358,5 +359,5 @@
       "parser_softmax": 1.0
     }
   },
-  "seconds": 202
+  "seconds": 158
 }
