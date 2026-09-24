@@ -83,7 +83,8 @@ def main() -> None:
         write_probability_table(output / f"oof_seed{seed}.csv", probabilities, folds)
     development_metrics = score_repetitions(development, probabilities_by_seed, is_valid)
     print(
-        f"pooled {development_metrics['pooled_macro_f1']:.4f} valid-only {development_metrics['valid_only_macro_f1']:.4f}",
+        f"pooled {development_metrics['pooled_macro_f1']:.4f} "
+        f"valid-only {development_metrics['valid_only_macro_f1']:.4f}",
         flush=True,
     )
 

@@ -40,7 +40,10 @@ def score_directory(data: str, directory: Path, *, bootstrap_samples: int = 2000
             if not np.array_equal(frame["fold"].to_numpy(), expected.to_numpy()):
                 raise ValueError(f"{path} fold column does not match the hashed protocol folds")
         probabilities_by_seed[seed] = read_probability_table(str(path))
-    result = {"development": score_repetitions(development, probabilities_by_seed, is_valid, bootstrap_samples=bootstrap_samples)}
+    development_result = score_repetitions(
+        development, probabilities_by_seed, is_valid, bootstrap_samples=bootstrap_samples
+    )
+    result = {"development": development_result}
     lockbox_path = directory / "lockbox.csv"
     if lockbox_path.exists():
         lockbox_probabilities = read_probability_table(str(lockbox_path))
@@ -54,7 +57,8 @@ def summary_line(name: str, result: dict) -> str:
     development = result["development"]
     parts = [
         f"{name:14s}",
-        f"pooled {development['pooled_macro_f1']:.4f} ({development['pooled_ci95'][0]:.3f}-{development['pooled_ci95'][1]:.3f})",
+        f"pooled {development['pooled_macro_f1']:.4f} "
+        f"({development['pooled_ci95'][0]:.3f}-{development['pooled_ci95'][1]:.3f})",
         f"valid-only {development['valid_only_macro_f1']:.4f} "
         f"({development['valid_only_ci95'][0]:.3f}-{development['valid_only_ci95'][1]:.3f})",
     ]
