@@ -34,6 +34,7 @@ from .features import (
 )
 from .model import ModelBundle, decide, fit_models, fit_predict, predict_probabilities
 from .posterior import AmountPrior, learn_amount_prior
+from .pseudo import pseudo_labels, shift_history
 from .submission import write_prediction_artifacts
 from .vocab import CLASSES
 
@@ -43,6 +44,7 @@ class FeatureSpec:
     split: str
     augmentation: str | None = None
     parameters: dict[str, Any] | None = None
+    shift: int | None = None
 
 
 FEATURE_SPECS = {
@@ -58,6 +60,17 @@ FEATURE_SPECS = {
     "validT0": FeatureSpec("valid", "add", {**VALID_TO_TEST, "seed": 0}),
     "validT1": FeatureSpec("valid", "add", {**VALID_TO_TEST, "seed": 1}),
     "validT2": FeatureSpec("valid", "add", {**VALID_TO_TEST, "seed": 2}),
+    # Pseudo-cutoff views: the history is cut ``shift`` days before the real cutoff and re-dated,
+    # and the client's own observed future supplies a soft label (``pseudo_label_tables``).
+    "unlabeled90T": FeatureSpec("unlabeled_pretrain", "redraw", {**TEST_LEVEL, "seed": 10}, shift=90),
+    "unlabeled90V": FeatureSpec("unlabeled_pretrain", "redraw", {**VALID_LEVEL, "seed": 11}, shift=90),
+    "unlabeled180T": FeatureSpec("unlabeled_pretrain", "redraw", {**TEST_LEVEL, "seed": 12}, shift=180),
+    "unlabeled180V": FeatureSpec("unlabeled_pretrain", "redraw", {**VALID_LEVEL, "seed": 13}, shift=180),
+    "unlabeled90": FeatureSpec("unlabeled_pretrain", shift=90),
+    "train90T": FeatureSpec("train", "redraw", {**TEST_LEVEL, "seed": 14}, shift=90),
+    "train90V": FeatureSpec("train", "redraw", {**VALID_LEVEL, "seed": 15}, shift=90),
+    "valid90": FeatureSpec("valid", shift=90),
+    "test90": FeatureSpec("test", shift=90),
 }
 EVALUATION_TABLES = ("train", "valid", "trainT", "trainV", "validT0", "validT1", "validT2")
 TRAINING_TABLES = ("trainT", "trainV", "valid", "validT1")
@@ -72,6 +85,8 @@ def learn_prior(data_dir: str | Path) -> AmountPrior:
 def _feature_job(payload: tuple[str, FeatureSpec, AmountPrior]) -> pd.DataFrame:
     data_dir, spec, amount_prior = payload
     frame = load_transactions(data_dir, spec.split)
+    if spec.shift is not None:
+        frame = shift_history(frame, spec.shift)
     parameters = spec.parameters or {}
     if spec.augmentation == "redraw":
         frame = redraw_noise(frame, amount_prior, **parameters)
@@ -100,6 +115,38 @@ def prepare_feature_tables(
         with ProcessPoolExecutor(max_workers=min(jobs, len(payloads))) as executor:
             values = list(executor.map(_feature_job, payloads))
     return dict(zip(selected, values, strict=True))
+
+
+def _label_job(payload: tuple[str, str, int, AmountPrior]) -> pd.DataFrame:
+    data_dir, split, shift, amount_prior = payload
+    return pseudo_labels(load_transactions(data_dir, split), amount_prior, shift)
+
+
+def pseudo_label_tables(
+    data_dir: str | Path,
+    amount_prior: AmountPrior,
+    names: Iterable[str],
+    *,
+    jobs: int = 8,
+) -> dict[str, pd.DataFrame]:
+    """Soft labels for the requested pseudo-cutoff feature tables, keyed by table name."""
+
+    selected = tuple(names)
+    keys = []
+    for name in selected:
+        spec = FEATURE_SPECS[name]
+        if spec.shift is None:
+            raise ValueError(f"{name} is not a pseudo-cutoff table")
+        keys.append((spec.split, spec.shift))
+    unique = sorted(set(keys))
+    payloads = [(str(data_dir), split, shift, amount_prior) for split, shift in unique]
+    if jobs == 1 or len(payloads) == 1:
+        values = [_label_job(payload) for payload in payloads]
+    else:
+        with ProcessPoolExecutor(max_workers=min(jobs, len(payloads))) as executor:
+            values = list(executor.map(_label_job, payloads))
+    by_key = dict(zip(unique, values, strict=True))
+    return {name: by_key[key] for name, key in zip(selected, keys, strict=True)}
 
 
 def _print_metric(title: str, truth: pd.Series, prediction: pd.Series) -> dict[str, Any]:

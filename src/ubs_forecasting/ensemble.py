@@ -21,7 +21,7 @@ from .components import keyword_streams, listwise_candidates
 from .data import data_hashes, load_labels, load_transactions
 from .features import EXPERIMENTAL_FEATURES
 from .model import fit_listwise, predict_listwise
-from .pipeline import git_revision, learn_prior, prepare_feature_tables
+from .pipeline import FEATURE_SPECS, git_revision, learn_prior, prepare_feature_tables, pseudo_label_tables
 from .posterior import AmountPrior
 from .protocol import (
     FOLD_SEEDS,
@@ -37,8 +37,22 @@ from .vocab import CLASSES
 
 
 @dataclass(frozen=True)
+class PseudoView:
+    """A pseudo-cutoff feature table (see ``pseudo.py``) used as extra listwise training data.
+
+    ``family_only`` restricts its supervision to the seven-family ranking: the client's own
+    observed future says which family fires first, but not whether the challenge label would
+    have been ``none``, so the ``none`` row is left to the real labels.
+    """
+
+    table: str
+    weight: float = 1.0
+    family_only: bool = True
+
+
+@dataclass(frozen=True)
 class Recipe:
-    """Frozen configuration. Blend weights were selected on development out-of-fold data only.
+    """Frozen configuration. Every choice was selected on development out-of-fold data only.
 
     Blending the parser softmax scorer with the two ported components moved validation-only
     macro-F1 by at most about +0.005 on raw validation clients and by nothing under test-level
@@ -48,6 +62,7 @@ class Recipe:
 
     train_views: tuple[str, ...] = ("trainT", "trainV")
     valid_views: tuple[str, ...] = ("valid", "validT1")
+    pseudo_views: tuple[PseudoView, ...] = ()
     drop: tuple[str, ...] = EXPERIMENTAL_FEATURES
     model_seeds: tuple[int, ...] = (0, 1, 2)
     keyword_final_seeds: tuple[int, ...] = (0, 1, 2, 3, 4)
@@ -71,12 +86,33 @@ class ParserSoftmaxComponent:
 
     def prepare(self, data_dir: str | Path, amount_prior: AmountPrior, jobs: int) -> None:
         self.amount_prior = amount_prior
-        names = ("train", "valid", "test", *self.recipe.train_views, *self.recipe.valid_views)
+        pseudo_names = [view.table for view in self.recipe.pseudo_views]
+        names = ("train", "valid", "test", *self.recipe.train_views, *self.recipe.valid_views, *pseudo_names)
         self.tables = prepare_feature_tables(data_dir, amount_prior, names=dict.fromkeys(names), jobs=jobs)
+        self.pseudo_labels = (
+            pseudo_label_tables(data_dir, amount_prior, dict.fromkeys(pseudo_names), jobs=jobs) if pseudo_names else {}
+        )
 
     def _rows(self, name: str, clients: pd.Index) -> pd.DataFrame:
         table = self.tables[name]
         return table[table.client_id.isin(set(clients))]
+
+    def _pseudo_table(self, view: PseudoView, fit_clients: pd.Index) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Pseudo-cutoff rows and soft labels for one view.
+
+        Views built from the labeled splits are restricted to the clients being fitted, so a
+        held-out fold client or a lockbox client never contributes its shifted history either.
+        Family-only views drop clients whose observed future holds no recurring event.
+        """
+
+        table = self.tables[view.table]
+        soft = self.pseudo_labels[view.table]
+        if FEATURE_SPECS[view.table].split in ("train", "valid"):
+            table = table[table.client_id.isin(set(fit_clients))]
+        if view.family_only:
+            keep = soft.index[soft[list(CLASSES[:-1])].sum(axis=1) > 0]
+            table = table[table.client_id.isin(set(keep))]
+        return table, soft
 
     def fit_predict(
         self,
@@ -86,10 +122,23 @@ class ParserSoftmaxComponent:
         predict: dict[str, pd.Index],
         seed: int | None,
     ) -> dict[str, pd.DataFrame]:
-        training = [(self._rows(view, train_clients), labels) for view in self.recipe.train_views]
+        training: list[tuple[pd.DataFrame, pd.Series | pd.DataFrame]] = [
+            (self._rows(view, train_clients), labels) for view in self.recipe.train_views
+        ]
         training += [(self._rows(view, valid_clients), labels) for view in self.recipe.valid_views]
+        weights = [1.0] * len(training)
+        family_only = [False] * len(training)
+        for view in self.recipe.pseudo_views:
+            training.append(self._pseudo_table(view, train_clients.union(valid_clients)))
+            weights.append(view.weight)
+            family_only.append(view.family_only)
         bundle = fit_listwise(
-            training, amount_prior=self.amount_prior, drop=self.recipe.drop, seeds=self.recipe.model_seeds
+            training,
+            amount_prior=self.amount_prior,
+            drop=self.recipe.drop,
+            seeds=self.recipe.model_seeds,
+            weights=weights,
+            family_only=family_only,
         )
         return {
             split: predict_listwise(bundle, self._rows(split, clients)).reindex(clients)
@@ -309,6 +358,10 @@ def recipe_dict(recipe: Recipe) -> dict[str, Any]:
     return {
         "train_views": list(recipe.train_views),
         "valid_views": list(recipe.valid_views),
+        "pseudo_views": [
+            {"table": view.table, "weight": view.weight, "family_only": view.family_only}
+            for view in recipe.pseudo_views
+        ],
         "drop": list(recipe.drop),
         "model_seeds": list(recipe.model_seeds),
         "keyword_final_seeds": list(recipe.keyword_final_seeds),

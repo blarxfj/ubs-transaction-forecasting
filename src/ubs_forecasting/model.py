@@ -32,6 +32,7 @@ DEFAULT_PARAMETERS: dict[str, Any] = {
 }
 
 TrainingTable = tuple[pd.DataFrame, pd.Series]
+ListwiseTable = tuple[pd.DataFrame, pd.Series | pd.DataFrame]
 
 
 @dataclass
@@ -209,14 +210,32 @@ def candidate_rows(features: pd.DataFrame) -> pd.DataFrame:
     return long
 
 
-def softmax_objective(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per-client softmax cross-entropy over eight contiguous candidate rows."""
+FAMILY_ONLY_TARGET = -1.0
 
-    raw = y_pred.reshape(-1, len(CLASSES))
+
+def softmax_objective(
+    y_true: np.ndarray, y_pred: np.ndarray, weight: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-client softmax cross-entropy over eight contiguous candidate rows.
+
+    Targets may be soft class distributions. A block whose ``none`` target is negative is trained
+    as a seven-way softmax over its family rows only: its ``none`` row is excluded from the
+    normalization and receives no gradient. Sample weights scale gradient and Hessian per row.
+    """
+
+    raw = y_pred.reshape(-1, len(CLASSES)).copy()
+    target = y_true.reshape(-1, len(CLASSES)).copy()
+    family_only = target[:, -1] < 0
+    if family_only.any():
+        raw[family_only, -1] = -np.inf
+        target[family_only, -1] = 0.0
     probabilities = np.exp(raw - raw.max(axis=1, keepdims=True))
     probabilities /= probabilities.sum(axis=1, keepdims=True)
-    gradient = (probabilities - y_true.reshape(-1, len(CLASSES))).reshape(-1)
+    gradient = (probabilities - target).reshape(-1)
     hessian = (probabilities * (1 - probabilities) + 1e-6).reshape(-1)
+    if weight is not None:
+        gradient = gradient * weight
+        hessian = hessian * weight
     return gradient, hessian
 
 
@@ -231,31 +250,69 @@ class ListwiseBundle:
     amount_prior: AmountPrior | None = None
 
 
+def listwise_targets(rows: pd.DataFrame, labels: pd.Series | pd.DataFrame, *, family_only: bool = False) -> np.ndarray:
+    """Per-row targets for contiguous candidate blocks: one-hot for hard labels, soft otherwise.
+
+    With ``family_only`` the ``none`` row of every block is marked so the objective trains a
+    seven-way family softmax for these clients; their family targets are renormalized.
+    """
+
+    if isinstance(labels, pd.Series):
+        target = (rows.family == rows.client_id.map(labels)).astype(float).to_numpy().reshape(-1, len(CLASSES))
+    else:
+        clients = rows.client_id.to_numpy()[:: len(CLASSES)]
+        soft = labels.reindex(clients)[list(CLASSES)]
+        if soft.isna().any().any():
+            raise ValueError("soft labels are missing for some training clients")
+        target = soft.to_numpy(dtype=float)
+    if family_only:
+        family_mass = target[:, :-1].sum(axis=1, keepdims=True)
+        if (family_mass <= 0).any():
+            raise ValueError("family-only training requires family mass in every block")
+        target = np.concatenate([target[:, :-1] / family_mass, np.full((len(target), 1), FAMILY_ONLY_TARGET)], axis=1)
+    return target.reshape(-1)
+
+
 def fit_listwise(
-    train_tables: Sequence[TrainingTable],
+    train_tables: Sequence[ListwiseTable],
     *,
     amount_prior: AmountPrior | None = None,
     drop: Sequence[str] = (),
     seeds: Sequence[int] = (0, 1, 2),
     parameters: dict[str, Any] | None = None,
+    weights: Sequence[float] | None = None,
+    family_only: Sequence[bool] | None = None,
 ) -> ListwiseBundle:
-    """Fit bagged listwise softmax scorers over eight candidate rows per client."""
+    """Fit bagged listwise softmax scorers over eight candidate rows per client.
+
+    Labels may be hard (a client-indexed Series) or soft (a client-indexed DataFrame of class
+    probabilities). ``weights`` gives one sample weight per training table and ``family_only``
+    marks tables that supervise only the seven-family ranking (their ``none`` decision is not
+    trained).
+    """
 
     if not train_tables:
         raise ValueError("at least one training table is required")
-    parts = []
-    for features, labels in train_tables:
+    table_weights = [1.0] * len(train_tables) if weights is None else list(weights)
+    table_family_only = [False] * len(train_tables) if family_only is None else list(family_only)
+    if len(table_weights) != len(train_tables) or len(table_family_only) != len(train_tables):
+        raise ValueError("one weight and one family-only flag per training table is required")
+    parts, targets, sample_weights = [], [], []
+    for (features, labels), weight, only in zip(train_tables, table_weights, table_family_only, strict=True):
         rows = candidate_rows(features)
-        parts.append(rows.assign(_y=rows.client_id.map(labels)))
+        parts.append(rows)
+        targets.append(listwise_targets(rows, labels, family_only=only))
+        sample_weights.append(np.full(len(rows), float(weight)))
     long = pd.concat(parts, ignore_index=True)
-    columns = [column for column in long.columns if column not in ("client_id", "family", "_y") and column not in drop]
-    target = (long.family == long._y).astype(int).to_numpy()
+    columns = [column for column in long.columns if column not in ("client_id", "family") and column not in drop]
+    target = np.concatenate(targets)
+    sample_weight = np.concatenate(sample_weights)
     model_parameters = {**(DEFAULT_PARAMETERS if parameters is None else parameters)}
     model_parameters.pop("objective", None)
     models = []
     for seed in seeds:
         model = lgb.LGBMRegressor(**model_parameters, objective=softmax_objective, random_state=seed)
-        model.fit(long[columns], target, categorical_feature=["family_id"])
+        model.fit(long[columns], target, sample_weight=sample_weight, categorical_feature=["family_id"])
         models.append(model)
     return ListwiseBundle(
         models=models, columns=columns, dropped_features=tuple(drop), seeds=tuple(seeds), amount_prior=amount_prior
