@@ -38,7 +38,13 @@ from .vocab import CLASSES
 
 @dataclass(frozen=True)
 class Recipe:
-    """Frozen ensemble configuration. Weights were selected on development out-of-fold data only."""
+    """Frozen configuration. Blend weights were selected on development out-of-fold data only.
+
+    Blending the parser softmax scorer with the two ported components moved validation-only
+    macro-F1 by at most about +0.005 on raw validation clients and by nothing under test-level
+    noise, so only the parser softmax scorer carries weight. Components with zero weight are
+    still runnable through ``--components`` to reproduce their protocol re-scores.
+    """
 
     train_views: tuple[str, ...] = ("trainT", "trainV")
     valid_views: tuple[str, ...] = ("valid", "validT1")
@@ -46,7 +52,7 @@ class Recipe:
     model_seeds: tuple[int, ...] = (0, 1, 2)
     keyword_final_seeds: tuple[int, ...] = (0, 1, 2, 3, 4)
     weights: dict[str, float] = field(
-        default_factory=lambda: {"parser_softmax": 0.6, "keyword_streams": 0.2, "listwise_candidates": 0.2}
+        default_factory=lambda: {"parser_softmax": 1.0, "keyword_streams": 0.0, "listwise_candidates": 0.0}
     )
 
 
@@ -168,7 +174,7 @@ def build_components(recipe: Recipe, names: Sequence[str] | None = None) -> list
         KeywordStreamsComponent.name: KeywordStreamsComponent,
         ListwiseCandidatesComponent.name: ListwiseCandidatesComponent,
     }
-    selected = list(available) if names is None else list(names)
+    selected = [name for name in available if recipe.weights.get(name, 0.0) > 0] if names is None else list(names)
     unknown = set(selected) - set(available)
     if unknown:
         raise ValueError(f"unknown components: {sorted(unknown)}")
