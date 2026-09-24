@@ -40,7 +40,27 @@ PRIMARY_KEYS = (
     "p_next",
     "p_overdue",
     "p_active",
+    "p_n30",
+    "p_n60",
+    "p_n90",
+    "p_n180",
+    "p_gap_last_ratio",
+    "p_n_dup",
+    "p_n_missed",
+    "p_gap_regular",
+    "p_amt_last_dev",
+    "p_amt_max_absdev",
+    "p_n_outlier",
+    "p_swap_last1",
+    "p_swap_last3",
+    "p_generic_last1",
+    "p_generic_last3",
+    "p_fee_frac",
+    "p_dom_std",
+    "p_ref_after_last",
+    "p_nref60",
 )
+CHURN_KEYS = PRIMARY_KEYS[26:]
 
 # These values encode description/MCC noise. They are safe only after label-independent re-noising.
 NOISE_LEVEL_FEATURES = ("p_prob", "s_prob", "p_generic_frac", "p_mcc_top")
@@ -116,6 +136,9 @@ def client_features(
     features["c_frac_ref_streams"] = (
         float(np.mean([stream["nref"] > 0 for stream in recurring])) if recurring else np.nan
     )
+    for window in (30, 60, 90):
+        features[f"c_rows_{window}"] = int((group.day > -window).sum())
+        features[f"c_refunds_{window}"] = int((refunds.day > -window).sum())
     features["c_sub_ref_last90"] = int((subscription_refunds.day >= -90).sum())
     features["c_last_sub_ref"] = float(subscription_refunds.day.max()) if len(subscription_refunds) else np.nan
     return features
@@ -140,6 +163,8 @@ def family_features(
         (stream["last"] + (stream["per"] if np.isfinite(stream["per"]) else 30), stream) for stream in active
     ]
     features: dict[str, Any] = {
+        "n_events90": float(sum(stream["post"][family_index] * stream["n90"] for stream in recurring)),
+        "n_events180": float(sum(stream["post"][family_index] * stream["n180"] for stream in recurring)),
         "n_streams": float(sum(stream["post"][family_index] for stream in recurring)),
         "n_active": float(sum(stream["post"][family_index] for stream in active)),
         "n_ended_ref": float(
@@ -185,6 +210,7 @@ def family_features(
             primary["last"] + period,
             -primary["last"] / period,
             float(is_active(primary)),
+            *(primary[key[2:]] for key in CHURN_KEYS),
         )
         features.update(dict(zip(PRIMARY_KEYS, values, strict=True)))
     else:
@@ -218,6 +244,12 @@ def build_features(frame: pd.DataFrame, amount_prior: AmountPrior) -> pd.DataFra
             for family in FAMILIES
         }
         sorted_next_days = sorted(value for value in next_days.values() if np.isfinite(value))
+        active_counts = {
+            family: family_blocks[family]["p_n"] for family in FAMILIES if family_blocks[family]["p_active"] == 1
+        }
+        active_lasts = {
+            family: family_blocks[family]["p_last"] for family in FAMILIES if family_blocks[family]["p_active"] == 1
+        }
         for family in FAMILIES:
             block = family_blocks[family]
             own_next = next_days[family]
@@ -229,6 +261,14 @@ def build_features(frame: pd.DataFrame, amount_prior: AmountPrior) -> pd.DataFra
             )
             block["n_other_active"] = len(other_next)
             block["next_rank"] = sorted_next_days.index(own_next) if np.isfinite(own_next) else np.nan
+            own_n = block["p_n"] if block["p_active"] == 1 else np.nan
+            block["n_rank"] = (
+                int(sum(1 for value in active_counts.values() if value > own_n)) if np.isfinite(own_n) else np.nan
+            )
+            own_last = block["p_last"] if block["p_active"] == 1 else np.nan
+            block["last_rank"] = (
+                int(sum(1 for value in active_lasts.values() if value > own_last)) if np.isfinite(own_last) else np.nan
+            )
             block["e_ref"] = float(refunds[f"d_{family}"].sum())
             rows.append(
                 {

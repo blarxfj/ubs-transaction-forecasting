@@ -83,7 +83,32 @@ def stream_record(
     last_day = int(days.max())
     recent_gaps = list(gaps[-3:][::-1])
     recent_gaps.extend([np.nan] * (3 - len(recent_gaps)))
+    log_amounts = np.log(stream.amount.values)
+    log_median = float(np.median(log_amounts))
+    mcc_top = stream.mcc.value_counts().index[0]
+    swapped = (stream.mcc.values != mcc_top).astype(float)
+    generic = (stream.kind.values == "generic_sub").astype(float)
+    refund_days = matched_refunds.day.values if refund_count else np.array([], dtype=float)
     return {
+        "n30": int((days > -30).sum()),
+        "n60": int((days > -60).sum()),
+        "n90": int((days > -90).sum()),
+        "n180": int((days > -180).sum()),
+        "gap_last_ratio": float(gaps[-1] / period) if len(gaps) and period > 0 else np.nan,
+        "n_dup": int((gaps < 5).sum()) if len(gaps) else 0,
+        "n_missed": int((gaps > 1.6 * period).sum()) if len(gaps) and period > 0 else 0,
+        "gap_regular": float(np.mean(np.abs(gaps / period - 1) < 0.2)) if len(gaps) and period > 0 else np.nan,
+        "amt_last_dev": float(log_amounts[-1] - log_median),
+        "amt_max_absdev": float(np.max(np.abs(log_amounts - log_median))),
+        "n_outlier": int((np.abs(log_amounts - log_median) > 0.03).sum()),
+        "swap_last1": float(swapped[-1]),
+        "swap_last3": float(swapped[-3:].sum()),
+        "generic_last1": float(generic[-1]),
+        "generic_last3": float(generic[-3:].sum()),
+        "fee_frac": float((stream.fee.values > 0).mean()),
+        "dom_std": float(np.std(stream.date.dt.day.values)) if count >= 2 else np.nan,
+        "ref_after_last": float((refund_days > last_day).any()) if refund_count else 0.0,
+        "nref60": int((refund_days > -60).sum()) if refund_count else 0,
         "n": count,
         "first": int(days.min()),
         "last": last_day,
