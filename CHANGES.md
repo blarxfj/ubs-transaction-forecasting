@@ -87,9 +87,14 @@ through `ubs-forecast ensemble --components ...` for re-scoring.
 ## Process notes
 
 - Everything above was selected on development out-of-fold data only.
-- The lockbox was scored twice for the final model: once during an end-to-end smoke test of the
-  pipeline with the primary component alone, and once by the final run. Both fits are identical
-  (same recipe, same seeds) and produce the same number; no decision was changed after the first
-  look. The earlier attempts' lockbox scores come from their own final models.
+- The lockbox was scored more than once. The final model's lockbox number was produced twice by
+  identical fits: during an end-to-end smoke test of the pipeline with the primary component
+  alone, and by the final run. A three-component run launched before the recipe was frozen also
+  scored the lockbox for its components and for the provisional 0.6/0.2/0.2 blend (0.707,
+  0.636-0.766). The recipe was frozen on development evidence before that number existed and was
+  not changed afterwards; it is reported here so the lockbox is not mistaken for an untouched
+  holdout. The earlier attempts' lockbox scores come from their own final models.
+- Running the ported components inside this branch reproduces the earlier attempts' out-of-fold,
+  lockbox, and test probabilities to the 1e-10 precision of the written CSV files.
 - Determinism: two independent full runs produce byte-identical `submission.csv`; the SHA-256 is
   recorded in [deliverables/README.md](deliverables/README.md).
