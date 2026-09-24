@@ -9,6 +9,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The canonical architecture and evidence boundaries are documented in `README.md`; shared-protocol results are in `results/PROTOCOL.md` and `CHANGES.md`, iteration-0 single-split results in `results/VALIDATION.md` and `results/CALIBRATION.md`.
 - `deliverables/` is the one tracked exception for generated tables: the final protocol run's out-of-fold, lockbox, test probability, and submission files. Regenerate them with `ubs-forecast ensemble`; never edit them by hand.
 - Model selection uses development data only (`src/ubs_forecasting/protocol.py`); the valid-only lockbox is scored once by the final run and must not steer any choice.
+- `scripts/protocol_experiments.py` reproduces every tested variant from cached feature tables; add new ideas there as variants so their paired bootstrap against `deliverables/` is recorded. The labels are more random than the observed histories (see `CHANGES.md`), so self-supervised pseudo labels from observed futures do not transfer.
 
 ## Maintaining this file
 

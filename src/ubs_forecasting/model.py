@@ -182,14 +182,39 @@ def load_model(path: str | Path) -> ModelBundle:
 
 NONE_FAMILY_ID = len(FAMILIES)
 SUMMARY_FEATURES = ("x_max_prob", "x_max_n", "x_min_next", "x_n_fam", "x_max_active")
+# Churn-relevant properties of the client's earliest-due active stream, copied onto every candidate
+# row (``xe_*``) so the ``none`` row can see the stream it competes against most directly.
+EARLIEST_STREAM_KEYS = (
+    "p_prob",
+    "p_n",
+    "p_first",
+    "p_last",
+    "p_per",
+    "p_next",
+    "p_nref",
+    "p_ref_rate",
+    "p_last_refunded",
+    "p_ref_after_last",
+    "p_nref60",
+    "p_gap_last_ratio",
+    "p_n_missed",
+    "p_gap_regular",
+    "p_amt_last_dev",
+    "p_n_outlier",
+    "p_n30",
+    "p_n90",
+    "p_generic_last1",
+    "p_swap_last1",
+)
 
 
-def candidate_rows(features: pd.DataFrame) -> pd.DataFrame:
+def candidate_rows(features: pd.DataFrame, *, earliest_summaries: bool = False) -> pd.DataFrame:
     """Return eight contiguous candidate rows per client: seven families plus ``none``.
 
     The ``none`` row carries only the client-level ``c_*`` features. Every row additionally receives
     label-free client summaries of the family candidates so the shared scorer can compare a row
-    against the strongest competing evidence of the same client.
+    against the strongest competing evidence of the same client. With ``earliest_summaries`` the
+    rows also carry the churn-relevant properties of the earliest-due active stream.
     """
 
     client_columns = [column for column in features.columns if column.startswith("c_")]
@@ -203,6 +228,11 @@ def candidate_rows(features: pd.DataFrame) -> pd.DataFrame:
         x_n_fam=("n_streams", lambda values: float((values > 0).sum())),
         x_max_active=("n_active", "max"),
     )
+    if earliest_summaries:
+        active = features[features.p_active == 1].sort_values(["client_id", "p_next", "family_id"], kind="stable")
+        earliest = active.groupby("client_id").first()[list(EARLIEST_STREAM_KEYS)]
+        earliest.columns = [f"xe_{key[2:]}" for key in EARLIEST_STREAM_KEYS]
+        summary = summary.join(earliest)
     long = pd.concat([features, none_rows], ignore_index=True).join(summary, on="client_id")
     long = long.sort_values(["client_id", "family_id"], kind="stable").reset_index(drop=True)
     if len(long) % len(CLASSES):
@@ -248,6 +278,7 @@ class ListwiseBundle:
     dropped_features: tuple[str, ...]
     seeds: tuple[int, ...]
     amount_prior: AmountPrior | None = None
+    earliest_summaries: bool = False
 
 
 def listwise_targets(rows: pd.DataFrame, labels: pd.Series | pd.DataFrame, *, family_only: bool = False) -> np.ndarray:
@@ -282,6 +313,7 @@ def fit_listwise(
     parameters: dict[str, Any] | None = None,
     weights: Sequence[float] | None = None,
     family_only: Sequence[bool] | None = None,
+    earliest_summaries: bool = False,
 ) -> ListwiseBundle:
     """Fit bagged listwise softmax scorers over eight candidate rows per client.
 
@@ -299,7 +331,7 @@ def fit_listwise(
         raise ValueError("one weight and one family-only flag per training table is required")
     parts, targets, sample_weights = [], [], []
     for (features, labels), weight, only in zip(train_tables, table_weights, table_family_only, strict=True):
-        rows = candidate_rows(features)
+        rows = candidate_rows(features, earliest_summaries=earliest_summaries)
         parts.append(rows)
         targets.append(listwise_targets(rows, labels, family_only=only))
         sample_weights.append(np.full(len(rows), float(weight)))
@@ -315,14 +347,19 @@ def fit_listwise(
         model.fit(long[columns], target, sample_weight=sample_weight, categorical_feature=["family_id"])
         models.append(model)
     return ListwiseBundle(
-        models=models, columns=columns, dropped_features=tuple(drop), seeds=tuple(seeds), amount_prior=amount_prior
+        models=models,
+        columns=columns,
+        dropped_features=tuple(drop),
+        seeds=tuple(seeds),
+        amount_prior=amount_prior,
+        earliest_summaries=earliest_summaries,
     )
 
 
 def predict_listwise(bundle: ListwiseBundle, features: pd.DataFrame) -> pd.DataFrame:
     """Average the per-client softmax over bagged scorers."""
 
-    long = candidate_rows(features)
+    long = candidate_rows(features, earliest_summaries=bundle.earliest_summaries)
     output: pd.DataFrame | int = 0
     for model in bundle.models:
         raw = model.predict(long[bundle.columns]).reshape(-1, len(CLASSES))

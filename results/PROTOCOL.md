@@ -10,6 +10,13 @@ Validation-only and lockbox are the headline numbers: pooled scores mix in the m
 | Iteration 1: keyword streams | 0.662 (0.645-0.680) | 0.603 (0.567-0.634) | 0.641 (0.567-0.703) |
 | Iteration 2: amount-kernel listwise | 0.683 (0.666-0.700) | 0.616 (0.580-0.645) | 0.592 (0.516-0.661) |
 | Iteration 3: parser softmax | 0.688 (0.671-0.706) | 0.679 (0.643-0.711) | 0.668 (0.593-0.729) |
+| Iteration 4: six-method blend | 0.694 (0.676-0.710) | 0.666 (0.630-0.699) | 0.703 (0.632-0.764) |
+| Iteration 5: iteration 3 recipe retained | 0.688 (0.671-0.706) | 0.679 (0.643-0.711) | 0.668 (0.593-0.729) |
+
+Iteration 4's scores are its own reported protocol scores (same lockbox, same folds); its paired
+validation-only difference against iteration 3 on the shared clients is -0.008, -0.011, and
+-0.018 for seeds 0, 1, 2, and +0.035 (-0.019 to +0.086) on the lockbox. Iteration 5 makes the
+same predictions as iteration 3; see `CHANGES.md` for the variants it tested.
 
 ## Per-seed validation-only macro-F1
 
@@ -19,6 +26,8 @@ Validation-only and lockbox are the headline numbers: pooled scores mix in the m
 | Iteration 1: keyword streams | 0.600 | 0.615 | 0.594 |
 | Iteration 2: amount-kernel listwise | 0.629 | 0.602 | 0.616 |
 | Iteration 3: parser softmax | 0.677 | 0.677 | 0.682 |
+| Iteration 4: six-method blend | 0.669 | 0.665 | 0.664 |
+| Iteration 5: iteration 3 recipe retained | 0.677 | 0.677 | 0.682 |
 
 ## Per-class F1 (validation-only, mean over seeds)
 

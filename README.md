@@ -18,10 +18,17 @@ client bootstraps. Differences under about 0.02 are noise.
 | Iteration 0: ranker + none gate (`ubs-forecast all`) | 0.655 (0.637-0.674) | 0.643 (0.605-0.673) | 0.703 (0.632-0.763) |
 | Iteration 1: keyword streams (`--components keyword_streams`) | 0.662 (0.645-0.680) | 0.603 (0.567-0.634) | 0.641 (0.567-0.703) |
 | Iteration 2: amount-kernel listwise (`--components listwise_candidates`) | 0.683 (0.666-0.700) | 0.616 (0.580-0.645) | 0.592 (0.516-0.661) |
-| **This branch: parser features + eight-candidate softmax (`ubs-forecast ensemble`)** | **0.688 (0.671-0.706)** | **0.679 (0.643-0.711)** | 0.668 (0.593-0.729) |
+| Iteration 3: parser features + eight-candidate softmax (`ubs-forecast ensemble`) | 0.688 (0.671-0.706) | 0.679 (0.643-0.711) | 0.668 (0.593-0.729) |
+| Iteration 4: equal six-method blend, none multiplier 0.8 | 0.694 (0.676-0.710) | 0.666 (0.630-0.699) | 0.703 (0.632-0.764) |
+| **This branch (iteration 5): iteration 3 recipe, retained after a further improvement round** | **0.688 (0.671-0.706)** | **0.679 (0.643-0.711)** | 0.668 (0.593-0.729) |
 
-See [CHANGES.md](CHANGES.md) for what changed, what was tried, and the numbers behind each
-decision. The earlier single-split results of iteration 0 remain in
+This branch keeps iteration 3's frozen recipe: a further round of ideas (self-supervised
+pseudo-cutoff labels from the unlabeled histories, stronger churn summaries for the `none` row,
+calibration, blends with iteration 4, training-set cleaning, bagging and regularization) produced
+nothing outside seed noise, and the analysis in [CHANGES.md](CHANGES.md) shows why the label
+process leaves little room above this score. CHANGES.md lists every tested variant with its paired
+bootstrap against iteration 3; [results/PROTOCOL.md](results/PROTOCOL.md) has the side-by-side
+protocol scores of all iterations. The earlier single-split results of iteration 0 remain in
 [results/VALIDATION.md](results/VALIDATION.md).
 
 ## Method
@@ -73,6 +80,15 @@ uv run python scripts/score_protocol.py --data "$UBS_DATA_DIR" --directory artif
 ```
 
 The tracked copies of the final run's outputs live under [deliverables/](deliverables/).
+
+The development experiments behind CHANGES.md refit only the scorer on cached feature tables
+(about three minutes per variant; the pseudo-cutoff variants first build the unlabeled views,
+about six minutes):
+
+```bash
+uv run python scripts/protocol_experiments.py --data "$UBS_DATA_DIR" \
+  --cache artifacts/cache --output artifacts/experiments --variant base --variant pseudo90_w03
+```
 
 The original single-split workflows of iteration 0 are unchanged:
 
