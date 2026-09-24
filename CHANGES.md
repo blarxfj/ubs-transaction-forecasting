@@ -18,7 +18,7 @@ numbers. Differences under about 0.02 are noise.
 | Iteration 0 (main): ranker + none gate | 0.655 (0.637-0.674) | 0.643 (0.605-0.673) | 0.703 (0.632-0.763) |
 | Iteration 1: keyword streams, binary + logistic stage | 0.662 (0.645-0.680) | 0.603 (0.567-0.634) | 0.641 (0.567-0.703) |
 | Iteration 2: amount-kernel candidates, listwise ranker | 0.683 (0.666-0.700) | 0.616 (0.580-0.645) | 0.592 (0.516-0.661) |
-| **Iteration 3 (this branch): parser features, eight-candidate softmax** | **0.688 (0.672-0.706)** | **0.679 (0.649-0.713)** | 0.668 (0.593-0.729) |
+| **Iteration 3 (this branch): parser features, eight-candidate softmax** | **0.688 (0.671-0.706)** | **0.679 (0.643-0.711)** | 0.668 (0.593-0.729) |
 
 Paired client bootstrap of iteration 3 minus iteration 0 on the validation-only CV: +0.032
 (95% interval +0.012 to +0.052). On the lockbox the paired difference is -0.036 (95% interval

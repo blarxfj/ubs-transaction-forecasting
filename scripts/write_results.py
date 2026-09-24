@@ -23,8 +23,11 @@ def load_rows(specs: list[str]) -> list[tuple[str, dict[str, Any]]]:
         name, _, path = spec.partition("=")
         payload = json.loads(Path(path).read_text())
         if "ensemble" in payload:
+            weights = payload.get("recipe", {}).get("weights", {})
+            weighted = [component for component, weight in weights.items() if weight > 0]
             for component, result in payload["components"].items():
-                rows.append((f"{name}: {component}", result))
+                if weighted != [component]:
+                    rows.append((f"{name}: {component}", result))
             rows.append((name, payload["ensemble"]))
         else:
             rows.append((name, payload))

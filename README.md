@@ -18,7 +18,7 @@ client bootstraps. Differences under about 0.02 are noise.
 | Iteration 0: ranker + none gate (`ubs-forecast all`) | 0.655 (0.637-0.674) | 0.643 (0.605-0.673) | 0.703 (0.632-0.763) |
 | Iteration 1: keyword streams (`--components keyword_streams`) | 0.662 (0.645-0.680) | 0.603 (0.567-0.634) | 0.641 (0.567-0.703) |
 | Iteration 2: amount-kernel listwise (`--components listwise_candidates`) | 0.683 (0.666-0.700) | 0.616 (0.580-0.645) | 0.592 (0.516-0.661) |
-| **This branch: parser features + eight-candidate softmax (`ubs-forecast ensemble`)** | **0.688** | **0.679** | 0.668 (0.593-0.729) |
+| **This branch: parser features + eight-candidate softmax (`ubs-forecast ensemble`)** | **0.688 (0.671-0.706)** | **0.679 (0.643-0.711)** | 0.668 (0.593-0.729) |
 
 See [CHANGES.md](CHANGES.md) for what changed, what was tried, and the numbers behind each
 decision. The earlier single-split results of iteration 0 remain in
