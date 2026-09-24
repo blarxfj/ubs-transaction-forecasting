@@ -1,0 +1,13 @@
+.venv/
+work/
+reproduced/
+repeated/
+data/
+*.jsonl
+*labels.csv
+dataset.zip
+__pycache__/
+*.pyc
+catboost_info/
+brief.md
+launch-brief.md

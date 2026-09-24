@@ -1,0 +1,14 @@
+{
+  "feature_version": 3,
+  "none_weight": 0.8,
+  "components": [
+    {
+      "mode": "ranker",
+      "iterations": 1000,
+      "depth": 5,
+      "lr": 0.04,
+      "compact": false,
+      "weight": 1.0
+    }
+  ]
+}

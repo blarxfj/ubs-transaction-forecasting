@@ -1,0 +1,13 @@
+{
+  "definition": "Non-none development targets with zero assigned historical card payments in their target family. No locked clients are included.",
+  "train": {
+    "non_none_clients": 1403,
+    "missing_target_family_count": 73,
+    "missing_target_family_fraction": 0.05203136136849608
+  },
+  "valid": {
+    "non_none_clients": 559,
+    "missing_target_family_count": 23,
+    "missing_target_family_fraction": 0.04114490161001789
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "recipe_sha256": "0186cf8580aa5fb55c720fd276d5a8464f94d2707964ea5ec4f1406965dc014a",
+  "config": {
+    "feature_version": 3,
+    "none_weight": 0.8,
+    "components": [
+      {
+        "mode": "ranker",
+        "iterations": 1000,
+        "depth": 5,
+        "lr": 0.04,
+        "compact": false,
+        "weight": 1.0
+      }
+    ]
+  },
+  "training_clients": "train plus non-lockbox validation",
+  "seed": 0,
+  "source_sha256": {
+    "features.py": "7a78be505bf7410558d888aab065a7f88252d68a7e654c9a9069d9962057b822",
+    "experiment.py": "7c38096d07486000da4954a5a646569d5fde3da0055e4b0896a13382262acbf4",
+    "evaluate.py": "637aaf4863cb525147bef68b0af5571574552c93e00c4bbc1575b28c4a3c7e77",
+    "run.py": "ce3d1c3d8429b02d1bc7aa80f44722520aa3115cb6d8b5c1f73d5ef526e2247c",
+    "requirements.txt": "86a7f295b16a14166db00f78256eebb5791ea5d22c942ced7dcbeb5139c5abad"
+  }
+}

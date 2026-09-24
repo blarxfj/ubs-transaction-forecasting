@@ -1,0 +1,31 @@
+[
+  {
+    "name": "wide eight-class classifier",
+    "feature_version": 1,
+    "mode": "wide",
+    "iterations": 800,
+    "depth": 5,
+    "learning_rate": 0.04,
+    "seed": 0,
+    "completed_folds": [
+      0
+    ],
+    "fold0_macro_f1": 0.5526142229972076,
+    "note": "Stopped after the first fold; not a completed CV result."
+  },
+  {
+    "name": "compact listwise representation",
+    "feature_version": 2,
+    "mode": "ranker",
+    "compact": true,
+    "iterations": 1000,
+    "depth": 5,
+    "learning_rate": 0.04,
+    "seed": 0,
+    "completed_folds": [
+      0
+    ],
+    "fold0_macro_f1": 0.6573617002949479,
+    "note": "Single-fold screening only."
+  }
+]

@@ -1,0 +1,80 @@
+[
+  {
+    "name": "always none",
+    "seed0_mean_fold_macro_f1": 0.05725751535473511,
+    "pooled_macro_f1": 0.05725138121546961,
+    "valid_pooled_macro_f1": 0.056695992179863146
+  },
+  {
+    "name": "all_earliest due, maximum age 35",
+    "seed0_mean_fold_macro_f1": 0.4527157764135608,
+    "pooled_macro_f1": 0.453771222462361,
+    "valid_pooled_macro_f1": 0.3962155348412505
+  },
+  {
+    "name": "all_earliest due, maximum age 45",
+    "seed0_mean_fold_macro_f1": 0.4470986254367194,
+    "pooled_macro_f1": 0.44814265600566056,
+    "valid_pooled_macro_f1": 0.3889372941826972
+  },
+  {
+    "name": "all_earliest due, maximum age 60",
+    "seed0_mean_fold_macro_f1": 0.44157531290562907,
+    "pooled_macro_f1": 0.44269453597294384,
+    "valid_pooled_macro_f1": 0.37268885252032746
+  },
+  {
+    "name": "all_earliest due, maximum age 90",
+    "seed0_mean_fold_macro_f1": 0.43635167807266856,
+    "pooled_macro_f1": 0.4376671131297206,
+    "valid_pooled_macro_f1": 0.35495252936514365
+  },
+  {
+    "name": "core_earliest due, maximum age 35",
+    "seed0_mean_fold_macro_f1": 0.5030494387593614,
+    "pooled_macro_f1": 0.5047494358805914,
+    "valid_pooled_macro_f1": 0.4791648023339536
+  },
+  {
+    "name": "core_earliest due, maximum age 45",
+    "seed0_mean_fold_macro_f1": 0.49701399988810574,
+    "pooled_macro_f1": 0.49856360180466036,
+    "valid_pooled_macro_f1": 0.473252421768922
+  },
+  {
+    "name": "core_earliest due, maximum age 60",
+    "seed0_mean_fold_macro_f1": 0.4912592933463656,
+    "pooled_macro_f1": 0.4926891683894806,
+    "valid_pooled_macro_f1": 0.46466020845004974
+  },
+  {
+    "name": "core_earliest due, maximum age 90",
+    "seed0_mean_fold_macro_f1": 0.4846898122718608,
+    "pooled_macro_f1": 0.48614337293733195,
+    "valid_pooled_macro_f1": 0.4475594788238124
+  },
+  {
+    "name": "recentcore_earliest due, maximum age 35",
+    "seed0_mean_fold_macro_f1": 0.49532848939995733,
+    "pooled_macro_f1": 0.4970182694781202,
+    "valid_pooled_macro_f1": 0.4701866988450505
+  },
+  {
+    "name": "recentcore_earliest due, maximum age 45",
+    "seed0_mean_fold_macro_f1": 0.49128453520882653,
+    "pooled_macro_f1": 0.49292487654023776,
+    "valid_pooled_macro_f1": 0.46406965844545967
+  },
+  {
+    "name": "recentcore_earliest due, maximum age 60",
+    "seed0_mean_fold_macro_f1": 0.48817929390828557,
+    "pooled_macro_f1": 0.4897185182799861,
+    "valid_pooled_macro_f1": 0.45396908361183186
+  },
+  {
+    "name": "recentcore_earliest due, maximum age 90",
+    "seed0_mean_fold_macro_f1": 0.48124615564406115,
+    "pooled_macro_f1": 0.48277505543610866,
+    "valid_pooled_macro_f1": 0.4384060972298487
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "development_clients": 2791,
+  "lockbox_clients": 209,
+  "test_clients": 1000,
+  "label_counts": {
+    "train": {
+      "cloud": 190,
+      "gym": 190,
+      "insurance": 214,
+      "mobile": 191,
+      "music": 198,
+      "none": 597,
+      "software": 195,
+      "streaming": 225
+    },
+    "valid": {
+      "cloud": 65,
+      "gym": 100,
+      "insurance": 72,
+      "mobile": 87,
+      "music": 75,
+      "none": 232,
+      "software": 85,
+      "streaming": 75
+    }
+  },
+  "splits": {
+    "train": {
+      "clients": 2000,
+      "transactions": 147459,
+      "first_timestamp": "2024-11-07 00:07:06+00:00",
+      "last_timestamp": "2025-12-31 23:57:50+00:00",
+      "transactions_per_client_mean": 73.7295,
+      "transactions_per_client_min": 8,
+      "transactions_per_client_max": 162,
+      "vague_description_count": 1278,
+      "vague_description_fraction": 0.008666815860679918,
+      "monthly_plan_count": 1754,
+      "monthly_plan_mobile_mcc_fraction": 0.6550741163055872
+    },
+    "valid": {
+      "clients": 791,
+      "transactions": 57896,
+      "first_timestamp": "2024-11-07 00:09:28+00:00",
+      "last_timestamp": "2025-12-31 23:55:23+00:00",
+      "transactions_per_client_mean": 73.19342604298356,
+      "transactions_per_client_min": 8,
+      "transactions_per_client_max": 154,
+      "vague_description_count": 9722,
+      "vague_description_fraction": 0.1679217907972917,
+      "monthly_plan_count": 1268,
+      "monthly_plan_mobile_mcc_fraction": 0.21451104100946372
+    }
+  }
+}

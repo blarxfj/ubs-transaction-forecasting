@@ -1,0 +1,41 @@
+{
+  "configuration": {
+    "data": "work/data",
+    "cache": "work/v2",
+    "output": "results/experiments/ranker_v2",
+    "mode": "ranker",
+    "iterations": 1000,
+    "depth": 5,
+    "lr": 0.04,
+    "seeds": "0",
+    "weights": false
+  },
+  "n_clients": 2791,
+  "features": 2069,
+  "seeds": {
+    "0": {
+      "pooled_macro_f1": 0.6781459787848276,
+      "mean_fold_macro_f1": 0.6776239660464213,
+      "fold_macro_f1": [
+        0.6743707516805343,
+        0.6319795842264427,
+        0.6858170901244645,
+        0.6846593342403744,
+        0.7112930699602904
+      ],
+      "valid_macro_f1": 0.605582155227756,
+      "per_class_f1": {
+        "cloud": 0.6743295019157088,
+        "gym": 0.6632653061224489,
+        "insurance": 0.6678507992895204,
+        "mobile": 0.7195767195767195,
+        "music": 0.603112840466926,
+        "software": 0.6678507992895204,
+        "streaming": 0.6258741258741258,
+        "none": 0.8033077377436503
+      }
+    }
+  },
+  "mean_macro_f1": 0.6776239660464213,
+  "mean_pooled_macro_f1": 0.6781459787848276
+}

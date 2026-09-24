@@ -1,0 +1,43 @@
+{
+  "configuration": {
+    "data": "work/data",
+    "cache": "work/v2",
+    "output": "results/experiments/lgbm_binary",
+    "mode": "lgbm",
+    "iterations": 600,
+    "depth": 4,
+    "lr": 0.04,
+    "seeds": "0",
+    "weights": false,
+    "compact": false,
+    "folds": "0,1,2,3,4"
+  },
+  "n_clients": 2791,
+  "features": 2069,
+  "seeds": {
+    "0": {
+      "pooled_macro_f1": 0.6652984267303144,
+      "mean_fold_macro_f1": 0.6647249547898865,
+      "fold_macro_f1": [
+        0.6440378398554633,
+        0.631879431810308,
+        0.6681015568644314,
+        0.6897707264448866,
+        0.6898352189743424
+      ],
+      "valid_macro_f1": 0.6043093881944609,
+      "per_class_f1": {
+        "cloud": 0.6653846153846154,
+        "gym": 0.6519524617996605,
+        "insurance": 0.6666666666666666,
+        "mobile": 0.691358024691358,
+        "music": 0.5930232558139535,
+        "software": 0.631578947368421,
+        "streaming": 0.6350877192982456,
+        "none": 0.7873357228195937
+      }
+    }
+  },
+  "mean_macro_f1": 0.6647249547898865,
+  "mean_pooled_macro_f1": 0.6652984267303144
+}

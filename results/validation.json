@@ -1,0 +1,15 @@
+{
+  "output_rows": {
+    "oof.csv": 2791,
+    "lockbox.csv": 209,
+    "test_proba.csv": 1000
+  },
+  "submission_rows": 1000,
+  "schema_valid": true,
+  "fold_assignments_valid": true,
+  "normalized_probabilities": true,
+  "submission_sha256": "48c853ed135fb5daee38760661352213ad19b0b7e6ff8a48727f9d585d38cba4",
+  "sklearn_primary_score_agrees": true,
+  "scorer_absolute_difference": 0.0,
+  "independent_refit_identical_submission": true
+}

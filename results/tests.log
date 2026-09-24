@@ -1,0 +1,13 @@
+test_fixed_label_score (test_solution.Tests.test_fixed_label_score) ... ok
+test_future_rejected (test_solution.Tests.test_future_rejected) ... ok
+test_hash (test_solution.Tests.test_hash) ... ok
+test_lockbox_excluded_from_determinism_check (test_solution.Tests.test_lockbox_excluded_from_determinism_check) ... ok
+test_order_invariant (test_solution.Tests.test_order_invariant) ... ok
+test_period (test_solution.Tests.test_period) ... ok
+test_probability_adjustment (test_solution.Tests.test_probability_adjustment) ... ok
+test_repair_family (test_solution.Tests.test_repair_family) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.033s
+
+OK
