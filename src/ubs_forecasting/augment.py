@@ -25,16 +25,16 @@ from .vocab import (
 )
 
 TEST_LEVEL = {
-    "r_mask": 0.50,
-    "r_mcc": 0.28,
-    "r_affix": 0.40,
+    "r_mask": 0.54,
+    "r_mcc": 0.22,
+    "r_affix": 0.65,
     "r_eve_mask": 0.67,
     "r_eve_mcc": 0.12,
 }
 VALID_LEVEL = {
-    "r_mask": 0.35,
-    "r_mcc": 0.18,
-    "r_affix": 0.40,
+    "r_mask": 0.37,
+    "r_mcc": 0.16,
+    "r_affix": 0.59,
     "r_eve_mask": 0.47,
     "r_eve_mcc": 0.09,
 }
@@ -43,6 +43,7 @@ VALID_TO_TEST = {
     "p_eve_mcc": 0.04,
     "p_sub_mask": 0.25,
     "p_sub_mcc": 0.10,
+    "p_sub_affix": 0.08,
 }
 
 
@@ -85,13 +86,16 @@ def redraw_noise(
         main_currency = group.currency.value_counts().index[0]
         refunds = group[group.type == "refund"]
         for stream in build_streams(candidates):
-            if len(stream) < 2:
-                continue
             record = stream_record(stream, refunds, main_currency, amount_prior)
             family_index = int(np.argmax(record["post"]))
-            if record["post"][family_index] >= min_posterior:
-                for index in stream.index:
-                    family_by_index[index] = FAMILIES[family_index]
+            if len(stream) < 2 or record["post"][family_index] < min_posterior:
+                # Preserve uncertainty for sparse/ambiguous candidates while still replacing
+                # their train-specific description quality without consulting the label.
+                family = rng.choices(FAMILIES, weights=record["post"], k=1)[0]
+            else:
+                family = FAMILIES[family_index]
+            for index in stream.index:
+                family_by_index[index] = family
 
     output = frame.copy()
     descriptions = output.description.to_dict()
@@ -130,6 +134,7 @@ def add_noise(
     p_eve_mcc: float,
     p_sub_mask: float,
     p_sub_mcc: float,
+    p_sub_affix: float = 0.0,
     seed: int = 0,
 ) -> pd.DataFrame:
     """Add enough noise to valid transactions to approximate test noise."""
@@ -148,8 +153,11 @@ def add_noise(
             if rng.random() < p_eve_mcc:
                 mccs[index] = rng.choice(CARD_MCCS)
         elif kinds[index] in ("fam", "generic_sub"):
-            if kinds[index] == "fam" and rng.random() < p_sub_mask:
+            masked = kinds[index] == "fam" and rng.random() < p_sub_mask
+            if masked:
                 descriptions[index] = rng.choice(GENERIC_SUBSCRIPTION)
+            elif kinds[index] == "fam" and rng.random() < p_sub_affix:
+                descriptions[index] = add_affixes(descriptions[index], rng)
             if rng.random() < p_sub_mcc:
                 mccs[index] = rng.choice(CARD_MCCS)
     output["description"] = descriptions

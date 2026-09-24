@@ -40,6 +40,13 @@ EVERYDAY = (
     "pharmacy",
     "hotel booking",
 )
+EVERYDAY_MCC = dict(
+    zip(
+        EVERYDAY,
+        ("4111", "5411", "5411", "5411", "5732", "5732", "5812", "5812", "5912", "7011"),
+        strict=True,
+    )
+)
 OTHER = ("atm withdrawal", "salary", "p2p send", "p2p receive", "service fee")
 ABBREVIATION_EXPANSIONS = {
     "dgtl": "digital",

@@ -21,9 +21,15 @@ PRIMARY_KEYS = (
     "p_span",
     "p_per",
     "p_gap_mad",
+    "p_gap_last1",
+    "p_gap_last2",
+    "p_gap_last3",
+    "p_gap_max",
+    "p_skipped_cycle_frac",
     "p_amt",
     "p_amt_cv",
     "p_amt_trend",
+    "p_amt_change_last",
     "p_nref",
     "p_ref_rate",
     "p_last_refunded",
@@ -38,6 +44,23 @@ PRIMARY_KEYS = (
 
 # These values encode description/MCC noise. They are safe only after label-independent re-noising.
 NOISE_LEVEL_FEATURES = ("p_prob", "s_prob", "p_generic_frac", "p_mcc_top")
+SEQUENCE_FEATURES = (
+    "p_gap_last1",
+    "p_gap_last2",
+    "p_gap_last3",
+    "p_gap_max",
+    "p_skipped_cycle_frac",
+    "p_amt_change_last",
+)
+TARGETED_STREAM_FEATURES = (
+    "earliest_plausible_next",
+    "active_due_30_mass",
+    "active_due_60_mass",
+    "active_due_90_mass",
+)
+# Exploratory groups stay computable for reproducible ablations but are excluded from the final
+# model because neither produced consistent paired gains across both fold seeds and noise views.
+EXPERIMENTAL_FEATURES = (*SEQUENCE_FEATURES, *TARGETED_STREAM_FEATURES)
 
 
 def row_evidence(frame: pd.DataFrame) -> pd.DataFrame:
@@ -113,12 +136,19 @@ def family_features(
         if stream["n"] == 1 and stream["post"][family_index] >= 0.15 and stream["last"] >= -62
     ]
     active = [stream for stream in recurring if is_active(stream)]
+    active_next = [
+        (stream["last"] + (stream["per"] if np.isfinite(stream["per"]) else 30), stream) for stream in active
+    ]
     features: dict[str, Any] = {
         "n_streams": float(sum(stream["post"][family_index] for stream in recurring)),
         "n_active": float(sum(stream["post"][family_index] for stream in active)),
         "n_ended_ref": float(
             sum(stream["post"][family_index] for stream in recurring if not is_active(stream) and stream["nref"] > 0)
         ),
+        "earliest_plausible_next": min((value for value, _ in active_next), default=np.nan),
+        "active_due_30_mass": float(sum(stream["post"][family_index] for value, stream in active_next if value <= 30)),
+        "active_due_60_mass": float(sum(stream["post"][family_index] for value, stream in active_next if value <= 60)),
+        "active_due_90_mass": float(sum(stream["post"][family_index] for value, stream in active_next if value <= 90)),
     }
     pool = active if active else recurring
     primary = (
@@ -136,9 +166,15 @@ def family_features(
             primary["span"],
             period,
             primary["gap_mad"],
+            primary["gap_last1"],
+            primary["gap_last2"],
+            primary["gap_last3"],
+            primary["gap_max"],
+            primary["skipped_cycle_frac"],
             primary["amt"],
             primary["amt_cv"],
             primary["amt_trend"],
+            primary["amt_change_last"],
             primary["nref"],
             primary["nref"] / primary["n"],
             primary["last_refunded"],

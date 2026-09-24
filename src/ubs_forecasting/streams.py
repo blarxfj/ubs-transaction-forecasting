@@ -81,6 +81,8 @@ def stream_record(
     posterior = np.exp(likelihood - likelihood.max())
     posterior /= posterior.sum()
     last_day = int(days.max())
+    recent_gaps = list(gaps[-3:][::-1])
+    recent_gaps.extend([np.nan] * (3 - len(recent_gaps)))
     return {
         "n": count,
         "first": int(days.min()),
@@ -88,9 +90,15 @@ def stream_record(
         "span": int(last_day - days.min()),
         "per": period,
         "gap_mad": float(np.median(np.abs(gaps - period))) if count >= 3 else np.nan,
+        "gap_last1": recent_gaps[0],
+        "gap_last2": recent_gaps[1],
+        "gap_last3": recent_gaps[2],
+        "gap_max": float(gaps.max()) if len(gaps) else np.nan,
+        "skipped_cycle_frac": (float(np.mean(gaps > 1.5 * period)) if len(gaps) and period > 0 else np.nan),
         "amt": amount,
         "amt_cv": float(stream.amount.std() / stream.amount.mean()) if count >= 2 else 0.0,
         "amt_trend": float(stream.amount.iloc[-1] / stream.amount.iloc[0]) if count >= 2 else 1.0,
+        "amt_change_last": (float(stream.amount.iloc[-1] / stream.amount.iloc[-2] - 1) if count >= 2 else np.nan),
         "nref": refund_count,
         "last_refunded": float(
             refund_count > 0

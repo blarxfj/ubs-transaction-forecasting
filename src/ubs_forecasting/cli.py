@@ -6,7 +6,9 @@ import argparse
 import os
 from pathlib import Path
 
-from .data import load_labels, validate_data_directory
+from .calibration import calibration_report, write_calibration_report
+from .data import load_labels, validate_data_directory, validate_dataset_relationships
+from .interpretability import write_interpretability_artifacts
 from .model import load_model, save_model
 from .pipeline import (
     EVALUATION_TABLES,
@@ -17,6 +19,7 @@ from .pipeline import (
     predict_and_write,
     prepare_feature_tables,
     train_final_model,
+    write_oof_artifacts,
     write_run_metadata,
 )
 
@@ -51,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--output", type=Path, required=True)
     evaluate.add_argument("--fold-seeds", type=_fold_seeds, default=(0, 17))
     evaluate.add_argument("--bootstrap-samples", type=int, default=2000)
+    evaluate.add_argument("--skip-ablations", action="store_true")
 
     train = subparsers.add_parser("train", help="fit and serialize the final ensemble")
     _common_data_arguments(train)
@@ -62,11 +66,16 @@ def build_parser() -> argparse.ArgumentParser:
     predict.add_argument("--model", type=Path, required=True)
     predict.add_argument("--output", type=Path, required=True)
 
+    calibrate = subparsers.add_parser("calibrate", help="measure raw and augmented corruption")
+    _common_data_arguments(calibrate)
+    calibrate.add_argument("--output", type=Path, required=True)
+
     all_steps = subparsers.add_parser("all", help="evaluate, fit, and predict in one run")
     _common_data_arguments(all_steps)
     all_steps.add_argument("--output", type=Path, required=True)
     all_steps.add_argument("--fold-seeds", type=_fold_seeds, default=(0, 17))
     all_steps.add_argument("--bootstrap-samples", type=int, default=2000)
+    all_steps.add_argument("--skip-ablations", action="store_true")
     return parser
 
 
@@ -86,29 +95,39 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     data_dir = _validated_arguments(args, parser)
+    validate_dataset_relationships(data_dir)
 
     if args.command == "predict":
         bundle = load_model(args.model)
         if bundle.amount_prior is None:
             raise ValueError("model bundle does not contain the amount prior required for prediction")
         tables = prepare_feature_tables(data_dir, bundle.amount_prior, names=("test",), jobs=args.jobs)
-        predict_and_write(bundle, tables["test"], data_dir, args.output)
+        _, probabilities = predict_and_write(bundle, tables["test"], data_dir, args.output)
+        write_interpretability_artifacts(bundle, tables["test"], probabilities, args.output)
         write_run_metadata(args.output, data_dir)
         return
 
     amount_prior = learn_prior(data_dir)
+    if args.command == "calibrate":
+        report = calibration_report(data_dir, amount_prior)
+        write_calibration_report(report, args.output)
+        print(f"calibration report written: {args.output}")
+        return
+
     train_labels = load_labels(data_dir, "train")
     valid_labels = load_labels(data_dir, "valid")
 
     if args.command == "evaluate":
         tables = prepare_feature_tables(data_dir, amount_prior, names=EVALUATION_TABLES, jobs=args.jobs)
-        evaluation, _, _ = evaluate_tables(
+        evaluation, oof = evaluate_tables(
             tables,
             train_labels,
             valid_labels,
             fold_seeds=args.fold_seeds,
             bootstrap_samples=args.bootstrap_samples,
+            run_ablations=not args.skip_ablations,
         )
+        write_oof_artifacts(args.output, valid_labels, oof)
         write_run_metadata(args.output, data_dir, evaluation)
         return
 
@@ -122,16 +141,19 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     tables = prepare_feature_tables(data_dir, amount_prior, names=FEATURE_SPECS, jobs=args.jobs)
-    evaluation, _, _ = evaluate_tables(
+    evaluation, oof = evaluate_tables(
         tables,
         train_labels,
         valid_labels,
         fold_seeds=args.fold_seeds,
         bootstrap_samples=args.bootstrap_samples,
+        run_ablations=not args.skip_ablations,
     )
+    write_oof_artifacts(args.output, valid_labels, oof)
     bundle = train_final_model(tables, train_labels, valid_labels, amount_prior)
     save_model(bundle, args.output / "model.pkl")
-    predict_and_write(bundle, tables["test"], data_dir, args.output)
+    _, probabilities = predict_and_write(bundle, tables["test"], data_dir, args.output)
+    write_interpretability_artifacts(bundle, tables["test"], probabilities, args.output)
     write_run_metadata(args.output, data_dir, evaluation)
 
 

@@ -6,9 +6,11 @@ __pycache__/
 
 # Challenge data and generated artifacts
 /data/
+/results/*/
 /results/*.csv
 /results/*.json
 /results/*.log
 /models/
+/artifacts/
 submission.csv
 test_probabilities.csv
