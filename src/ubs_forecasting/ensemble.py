@@ -20,7 +20,7 @@ import pandas as pd
 from .components import keyword_streams, listwise_candidates
 from .data import data_hashes, load_labels, load_transactions
 from .features import EXPERIMENTAL_FEATURES
-from .model import fit_models, predict_probabilities
+from .model import fit_listwise, predict_listwise
 from .pipeline import git_revision, learn_prior, prepare_feature_tables
 from .posterior import AmountPrior
 from .protocol import (
@@ -46,17 +46,17 @@ class Recipe:
     model_seeds: tuple[int, ...] = (0, 1, 2)
     keyword_final_seeds: tuple[int, ...] = (0, 1, 2, 3, 4)
     weights: dict[str, float] = field(
-        default_factory=lambda: {"family_ranker": 0.6, "keyword_streams": 0.2, "listwise_candidates": 0.2}
+        default_factory=lambda: {"parser_softmax": 0.6, "keyword_streams": 0.2, "listwise_candidates": 0.2}
     )
 
 
 DEFAULT_RECIPE = Recipe()
 
 
-class FamilyRankerComponent:
-    """Closed-grammar parser features, label-independent re-noising, binary ranker plus none gate."""
+class ParserSoftmaxComponent:
+    """Closed-grammar parser features, label-independent re-noising, eight-candidate softmax scorer."""
 
-    name = "family_ranker"
+    name = "parser_softmax"
 
     def __init__(self, recipe: Recipe) -> None:
         self.recipe = recipe
@@ -82,11 +82,11 @@ class FamilyRankerComponent:
     ) -> dict[str, pd.DataFrame]:
         training = [(self._rows(view, train_clients), labels) for view in self.recipe.train_views]
         training += [(self._rows(view, valid_clients), labels) for view in self.recipe.valid_views]
-        bundle = fit_models(
+        bundle = fit_listwise(
             training, amount_prior=self.amount_prior, drop=self.recipe.drop, seeds=self.recipe.model_seeds
         )
         return {
-            split: predict_probabilities(bundle, self._rows(split, clients)).reindex(clients)
+            split: predict_listwise(bundle, self._rows(split, clients)).reindex(clients)
             for split, clients in predict.items()
         }
 
@@ -164,7 +164,7 @@ class ListwiseCandidatesComponent:
 
 def build_components(recipe: Recipe, names: Sequence[str] | None = None) -> list[Any]:
     available = {
-        FamilyRankerComponent.name: FamilyRankerComponent,
+        ParserSoftmaxComponent.name: ParserSoftmaxComponent,
         KeywordStreamsComponent.name: KeywordStreamsComponent,
         ListwiseCandidatesComponent.name: ListwiseCandidatesComponent,
     }
