@@ -21,6 +21,7 @@ def _synthetic_features(client_ids: list[str], labels: pd.Series | None = None) 
                     "family_id": family_id,
                     "p_next": float((family_id * 7 + client_number * 3) % 31),
                     "p_prob": 0.9 if family == label else 0.1 + family_id / 100,
+                    "p_n": float(2 + (client_number + family_id) % 6),
                     "n_active": float((client_number + family_id) % 3),
                     "n_streams": float(1 + (client_number * family_id) % 4),
                     "e_ref": float((client_number + 2 * family_id) % 5),

@@ -1,24 +1,28 @@
 # UBS Transaction Activity Forecasting
 
-A deterministic Python solution for predicting each client's next recurring merchant family after the `2026-01-01` cutoff. It detects recurring amount/currency streams, infers merchant-family evidence, and combines a shared family ranker with a client-level `none` gate.
+A deterministic Python solution for predicting each client's next recurring merchant family after the `2026-01-01` cutoff. It detects recurring amount/currency streams, infers merchant-family evidence, and scores eight candidates per client (seven families and `none`) with one shared listwise model.
 
 The repository generates and validates a local `submission.csv`; it contains no upload or organiser-submission integration.
 
 ## Results
 
-Repeated 5-fold client-held-out CV uses fold seeds 0 and 17. The test-noise stress result averages two independently corrupted views of the same valid clients.
+Scores are macro-F1 over the fixed eight labels under the shared protocol in
+[results/PROTOCOL.md](results/PROTOCOL.md): development set = 2,000 train clients plus 791
+non-lockbox valid clients, five hashed client folds repeated with seeds 0, 1, 2, and a 209-client
+valid-only lockbox predicted once by the final model. Validation-only CV and the lockbox are the
+headline numbers; pooled CV is flattered by the much cleaner train clients. Intervals are 95%
+client bootstraps. Differences under about 0.02 are noise.
 
-| Evaluation view | Macro-F1 (95% client-bootstrap CI) | none-gate AUC |
-| --- | ---: | ---: |
-| Valid noise | **0.672** (0.639-0.700) | 0.903 |
-| Test-level noise | **0.668** (0.637-0.697) | 0.902 |
+| Solution | Pooled CV | Validation-only CV | Lockbox |
+| --- | ---: | ---: | ---: |
+| Iteration 0: ranker + none gate (`ubs-forecast all`) | 0.655 (0.637-0.674) | 0.643 (0.605-0.673) | 0.703 (0.632-0.763) |
+| Iteration 1: keyword streams (`--components keyword_streams`) | 0.662 (0.645-0.680) | 0.603 (0.567-0.634) | 0.641 (0.567-0.703) |
+| Iteration 2: amount-kernel listwise (`--components listwise_candidates`) | 0.683 (0.666-0.700) | 0.616 (0.580-0.645) | 0.592 (0.516-0.661) |
+| **This branch: parser features + eight-candidate softmax (`ubs-forecast ensemble`)** | **0.688** | **0.679** | 0.668 (0.593-0.729) |
 
-The paired test-noise minus valid difference is -0.004 (95% CI -0.013 to +0.004). These are conditional estimates on a validation set used during development, not independent evidence or a hidden-test promise.
-
-- [Full validation results and per-class F1](results/VALIDATION.md)
-- [Parser-conditioned noise calibration](results/CALIBRATION.md)
-- [Measured model explanations](results/INTERPRETABILITY.md)
-- [Verified Appendix B reference](results/REFERENCE.md)
+See [CHANGES.md](CHANGES.md) for what changed, what was tried, and the numbers behind each
+decision. The earlier single-split results of iteration 0 remain in
+[results/VALIDATION.md](results/VALIDATION.md).
 
 ## Method
 
@@ -27,13 +31,13 @@ The paired test-noise minus valid difference is -0.004 (95% CI -0.013 to +0.004)
 3. **Stream posterior.** Combine description, MCC, clean amount-prior, and refund evidence into a seven-family posterior. Amount priors come from the unlabeled histories.
 4. **Features.** Build one row per `(client, family)` plus client-level activity, recurrence, timing, currency, and refund aggregates.
 5. **Shift repair.** Re-draw card-payment corruption for **every** train subscription-candidate row without using labels. Confident recurring streams use their inferred family; sparse or ambiguous candidates sample from their inferred posterior. Affix, mask, and MCC rates are calibrated against parser-derived test statistics.
-6. **Two-part model.** A LightGBM binary ranker chooses among seven families for non-`none` clients. A separate wide LightGBM gate predicts `none`. Three deterministic model seeds are averaged; the final decision is untuned argmax.
+6. **Eight-candidate softmax scorer.** Every client becomes eight rows: the seven family rows plus one `none` row carrying only client-level features, each with label-free summaries of the client's strongest family evidence. One gradient-boosted scorer is trained with a per-client softmax cross-entropy so the `none` decision competes directly with the family evidence. Three deterministic model seeds are averaged; the final decision is untuned argmax. The earlier two-part head (binary family ranker plus a separate `none` gate) remains available through `ubs-forecast all`.
 
 The retained [`ubs_baseline.py`](ubs_baseline.py) is the byte-identical Appendix B reference. The modular package first reproduced its scores and deterministic submission hash before the augmentation hardening was added.
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.12. All direct and transitive dependencies are locked in `uv.lock`.
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.12. All direct and transitive dependencies are locked in `uv.lock` (the ported iteration-2 component needs the symmetric-tree boosting library, which the lock pins; on macOS it may require `brew install libomp`).
 
 ```bash
 uv sync --locked
@@ -50,7 +54,27 @@ or unpack it yourself and point `--data` / `UBS_DATA_DIR` at the directory conta
 
 ## Run
 
-The `ubs-forecast` CLI is the single entry point:
+The `ubs-forecast` CLI is the single entry point. The protocol run below builds the features,
+runs the repeated hashed-fold CV, refits on the development set, scores the lockbox once, and
+writes `oof.csv`, `oof_seed{0,1,2}.csv`, `lockbox.csv`, `test_proba.csv`, `submission.csv`, and
+`metrics.json` (about eight minutes on eight cores):
+
+```bash
+uv run ubs-forecast ensemble --data "$UBS_DATA_DIR" --output artifacts/protocol --jobs 8
+
+# Re-score the two ported earlier attempts under the same protocol (the second one takes about
+# an hour because of its 2,093-column listwise ranker)
+uv run ubs-forecast ensemble --data "$UBS_DATA_DIR" --output artifacts/rescore \
+  --components parser_softmax,keyword_streams,listwise_candidates --jobs 8
+
+# Re-score the iteration-0 head under the protocol and score any probability directory
+uv run python scripts/rescore_iteration0.py --data "$UBS_DATA_DIR" --output artifacts/iteration0
+uv run python scripts/score_protocol.py --data "$UBS_DATA_DIR" --directory artifacts/iteration0
+```
+
+The tracked copies of the final run's outputs live under [deliverables/](deliverables/).
+
+The original single-split workflows of iteration 0 are unchanged:
 
 ```bash
 # Two fold seeds, two corruption seeds, bootstrap CIs, and bounded ablations
