@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from ubs_forecasting.listwise import fit_predict_listwise
 from ubs_forecasting.model import DEFAULT_PARAMETERS, fit_models, predict_probabilities
 from ubs_forecasting.submission import write_prediction_artifacts
 from ubs_forecasting.vocab import CLASSES, FAMILIES
@@ -68,3 +69,16 @@ def test_two_model_runs_produce_byte_identical_submission(tmp_path: Path) -> Non
     first = _fit_and_write(tmp_path / "first", sample_path)
     second = _fit_and_write(tmp_path / "second", sample_path)
     assert first == second
+
+
+def test_listwise_normalization_and_determinism():
+    client_ids = [f"C{index:03d}" for index in range(64)]
+    labels = pd.Series([CLASSES[index % 8] for index in range(64)], index=client_ids)
+    training = _synthetic_features(client_ids, labels)
+    evaluation = _synthetic_features(["T002", "T000", "T001"])
+    first = fit_predict_listwise([(training, labels)], [evaluation], seeds=(0,), rounds=10)[0]
+    second = fit_predict_listwise([(training, labels)], [evaluation], seeds=(0,), rounds=10)[0]
+    pd.testing.assert_frame_equal(first, second)
+    assert list(first.columns) == list(CLASSES)
+    assert (first.sum(axis=1).sub(1).abs() < 1e-12).all()
+    assert (first >= 0).all().all()

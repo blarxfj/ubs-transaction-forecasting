@@ -4,7 +4,7 @@ OUT ?= artifacts/run
 MODEL ?= artifacts/model.pkl
 JOBS ?= 8
 
-.PHONY: sync data lint test cv model submission all
+.PHONY: sync data lint test cv model submission all compare
 
 sync:
 	uv sync --locked
@@ -17,7 +17,7 @@ data:
 
 lint:
 	uv run ruff check .
-	uv run ruff format --check src tests
+	uv run ruff format --check src tests scripts
 
 test:
 	uv run pytest
@@ -36,3 +36,7 @@ submission: model
 all:
 	@test -n "$(DATA_DIR)" || (echo "Set DATA_DIR or UBS_DATA_DIR"; exit 2)
 	uv run ubs-forecast all --data "$(DATA_DIR)" --output "$(OUT)" --jobs "$(JOBS)"
+
+compare:
+	@test -n "$(DATASET_ZIP)" || (echo "Set DATASET_ZIP to the external dataset.zip"; exit 2)
+	bash scripts/run_comparison.sh "$(DATASET_ZIP)" "$(OUT)"

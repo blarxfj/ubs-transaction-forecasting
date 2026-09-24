@@ -4,8 +4,36 @@ A deterministic Python solution for predicting each client's next recurring merc
 
 The repository generates and validates a local `submission.csv`; it contains no upload or organiser-submission integration.
 
-## Results
+## Current comparison
 
+The corrected comparison uses all 2,000 train clients, 791 development-valid clients,
+209 valid-only lockbox clients, and SHA-256 five-fold assignments with seeds 0, 1, 2.
+The frozen probability blend reaches **0.666 validation-only macro-F1** (95% CI
+0.630–0.699), versus 0.643 for the strongest previous method under this protocol.
+Its one-shot lockbox score is **0.703**, effectively tied with the previous method's
+0.703. This is a development improvement, **not a demonstrated overall win**.
+
+See [the side-by-side comparison](results/ITERATION4.md) and [changes](CHANGES.md).
+
+```bash
+uv sync --locked
+# Read directly from an external ZIP; use a fresh ignored output directory.
+make compare DATASET_ZIP=/external/dataset.zip OUT=artifacts/comparison
+# Refit and verify the same submission without rescoring the lockbox.
+PYTHONHASHSEED=123 uv run python scripts/compare.py verify \
+  --data /external/dataset.zip --output artifacts/comparison
+```
+
+The comparison retains `oof.csv`, three seed-specific OOF tables, `lockbox.csv`,
+`test_proba.csv`, and `submission.csv` under `artifacts/comparison/selected/`.
+Generated tables remain ignored; only summarized results are committed.
+The pinned previous revisions must be available in the local Git object database;
+a normal full clone includes them. The second previous method's versioned probabilities
+already satisfy the exact protocol and are reused, not refitted.
+
+## Original evaluation (different protocol)
+
+These historical numbers are not directly comparable to the current comparison.
 Repeated 5-fold client-held-out CV uses fold seeds 0 and 17. The test-noise stress result averages two independently corrupted views of the same valid clients.
 
 | Evaluation view | Macro-F1 (95% client-bootstrap CI) | none-gate AUC |
@@ -20,7 +48,7 @@ The paired test-noise minus valid difference is -0.004 (95% CI -0.013 to +0.004)
 - [Measured model explanations](results/INTERPRETABILITY.md)
 - [Verified Appendix B reference](results/REFERENCE.md)
 
-## Method
+## Base method
 
 1. **Closed-grammar parser.** Normalize prefixes, suffixes, abbreviations, and one-token truncations into 47 supplied-corpus base descriptions. Ambiguous names retain fractional evidence across families.
 2. **Recurrence detection.** Cluster card-payment candidates by currency and single-linkage log amount at 3.5%. Summarize cadence, jitter, amount stability, recency, and matched refunds.
@@ -48,9 +76,9 @@ DATA_DIR="$UBS_DATA_DIR" DATASET_ZIP=/path/to/dataset.zip make data
 
 or unpack it yourself and point `--data` / `UBS_DATA_DIR` at the directory containing all seven challenge files. The dataset and generated artifacts are ignored by Git.
 
-## Run
+## Original workflow
 
-The `ubs-forecast` CLI is the single entry point:
+The `ubs-forecast` CLI runs the base method. Use `make compare` above for the current frozen blend and corrected comparison:
 
 ```bash
 # Two fold seeds, two corruption seeds, bootstrap CIs, and bounded ablations
@@ -112,6 +140,8 @@ Measured LightGBM gain assigns 71.6% of family-ranker gain to timing/recurrence 
 make lint
 make test
 UBS_DATA_DIR=/absolute/path/to/data uv run pytest tests/test_full_data.py
+# Alternatively, without extracting the private archive:
+UBS_DATA_ZIP=/external/dataset.zip make test
 ```
 
 CI runs lint, unit/contract tests, parser determinism checks, and a two-run byte-identity check on a tiny synthetic model fixture without private data. On the full supplied data, independently repeated train/predict runs under different `PYTHONHASHSEED` values produced byte-identical CSVs.

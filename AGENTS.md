@@ -6,7 +6,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Keep the challenge dataset outside the repository and pass it with `--data` or `UBS_DATA_DIR`; see `README.md` for workflows.
 - `ubs_baseline.py` is an immutable golden reference. Its script/output hashes live in `src/ubs_forecasting/reference.py` and are protected by `tests/test_golden_reference.py`.
 - Generated models, OOF tables, probabilities, and submissions belong under ignored artifact/result subdirectories. Commit only summarized Markdown under `results/`.
-- The canonical architecture and evidence boundaries are documented in `README.md`; current measured results are in `results/VALIDATION.md` and `results/CALIBRATION.md`.
+- Architecture and evidence boundaries are in `README.md`; corrected client-hash comparisons are in `results/ITERATION4.md`. Earlier-protocol and noise-calibration results remain in `results/VALIDATION.md` and `results/CALIBRATION.md`.
 
 ## Maintaining this file
 
