@@ -19,6 +19,7 @@ The paired test-noise minus valid difference is -0.004 (95% CI -0.013 to +0.004)
 - [Parser-conditioned noise calibration](results/CALIBRATION.md)
 - [Measured model explanations](results/INTERPRETABILITY.md)
 - [Verified Appendix B reference](results/REFERENCE.md)
+- [Iteration history and presentation summary](docs/ITERATIONS.md)
 
 ## Method
 
