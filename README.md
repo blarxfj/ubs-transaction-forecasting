@@ -149,8 +149,8 @@ CI runs lint, unit/contract tests, parser determinism checks, and a two-run byte
 
 - Valid labels informed model development. Repeated folds measure client-held-out behavior, but they do not create a prospectively untouched final holdout.
 - Valid and test-noised-valid are paired views of the same clients. Their difference is a stress test, not an independent replication.
-- Noise rates are parser/detector-conditioned estimates, not known generator corruption probabilities. Sparse, ambiguous, and heavily masked streams are underrepresented.
+- Noise rates are parser/detector-conditioned estimates, not exact noise rates in the data. Sparse, ambiguous, and heavily masked streams are underrepresented.
 - Refund descriptions are more stable and informative across splits, but are not assumed literally noise-free.
 - Amount-only single-linkage can merge nearby streams or split drifting ones. Ordered-gap and secondary-stream timing additions were tested and rejected because gains were inconsistent across fold seeds/noise views.
 - Ranker scores are normalized for decision-making but are not claimed to be calibrated customer-facing probabilities.
-- No hidden-test score, stochastic data-generating mechanism, or irreducible performance ceiling is asserted.
+- No hidden-test score, hidden rule behind the labels, or irreducible performance ceiling is asserted.

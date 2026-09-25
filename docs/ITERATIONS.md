@@ -25,15 +25,15 @@ The shared protocol uses five client-held-out folds repeated with seeds 0, 1, an
 
 **Original score.** The initial evaluation scored 0.672 on validation (range about 0.64–0.70) and 0.668 at test-level noise. It was deterministic and took about three minutes. The shared-protocol re-score is the iteration-0 row in the table above.
 
-**Lesson.** The main win came from understanding the data generator—not from using a bigger model.
+**Lesson.** The main win came from finding the patterns in the data, not from using a bigger model.
 
 ## Iteration 1 — independent attempt A
 
-**Idea.** Rebuild the generator rules independently. Each family has four named merchants plus four generic names shared by all families; descriptions are corrupted by prefixes, suffixes, abbreviations, truncation, and about 5–10% merchant-code swaps. Streams have near-constant amounts on roughly 30-day cycles, with some 14-day and 45–90-day cycles. The final approach used one shared per-client/per-family binary tree scorer followed by a small logistic second stage.
+**Idea.** Find the description and payment patterns independently. The analysis showed that each family has four named merchants plus four generic names shared by all families; descriptions are corrupted by prefixes, suffixes, abbreviations, truncation, and about 5–10% merchant-code swaps. Streams have near-constant amounts on roughly 30-day cycles, with some 14-day and 45–90-day cycles. The final approach used one shared per-client/per-family binary tree scorer followed by a small logistic second stage.
 
 **Original score.** The branch’s own results recorded 0.649 pooled CV, 0.593 on validation clients alone, and 0.661 on its locked check. That run locked away 635 clients, including train and validation clients, rather than the intended approximately 209 validation-only clients, so its locked value is not directly comparable. After the corrected shared-protocol re-score, the comparable values are 0.662 pooled, 0.603 validation-only, and 0.641 on the locked check.
 
-**Lesson.** An independent route rediscovered the same generator structure as iteration 0. One shared scorer per family candidate beat a single eight-class scorer by about 0.06 in both independent attempts, supporting this framing. The fair re-score also showed that the higher pooled score was driven by the easier training clients.
+**Lesson.** An independent route found the same data patterns as iteration 0. One shared scorer per family candidate beat a single eight-class scorer by about 0.06 in both independent attempts, supporting this framing. The fair re-score also showed that the higher pooled score was driven by the easier training clients.
 
 ## Iteration 2 — independent attempt B
 
@@ -70,6 +70,6 @@ The shared protocol uses five client-held-out folds repeated with seeds 0, 1, an
 ## Summary for slides
 
 - **Best retained solution:** iteration 3’s eight-candidate softmax scorer on parser and stream features: validation-only macro-F1 0.679 (0.643–0.711), locked check 0.668.
-- **Biggest wins, in order:** understand the data generator (closed grammar, train-only shortcut, and noise gap); re-noise training data to test level; use one shared scorer where `none` competes with the families.
+- **Biggest wins, in order:** find the patterns in the data (a closed description grammar, a train-only shortcut, and a noise gap between splits); re-noise training data to test level; use one shared scorer where `none` competes with the families.
 - **What did not help:** bigger single models, heavy pseudo-labelling of unlabeled clients, and blending beyond small gains.
 - **Process:** two independent blind attempts, fair identical re-scoring, then improvement rounds with a stopping rule and a locked final check. This made the comparisons explicit and kept pooled CV from being mistaken for the honest headline.
