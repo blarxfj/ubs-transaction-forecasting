@@ -27,7 +27,7 @@ UNAMBIGUOUS_GENERIC_SUBSCRIPTION = frozenset({"subscription charge", "member pla
 def noise_statistics(frame: pd.DataFrame) -> dict[str, float | int]:
     """Measure noise on regular detected streams using the final production parser.
 
-    These are parser/detector-conditioned estimates, not generator corruption rates. Sparse,
+    These are parser/detector-conditioned estimates, not exact noise rates in the data. Sparse,
     bimonthly, heavily masked, and ambiguous streams are underrepresented.
     """
 
@@ -121,7 +121,7 @@ def calibration_report(data_dir: str | Path, amount_prior: AmountPrior) -> dict[
     return {
         "detector_limitations": (
             "Statistics are conditioned on the final parser and regular >=4-payment detected streams; "
-            "they are not known generator corruption probabilities. The mask estimate uses a 4/3 "
+            "they are not exact noise rates in the data. The mask estimate uses a 4/3 "
             "adjustment because monthly plan is both a mobile name and a generic mask."
         ),
         "noise_statistics": {name: noise_statistics(frame) for name, frame in frames.items()},

@@ -1,6 +1,6 @@
 # Noise calibration
 
-Statistics are conditioned on the final parser and regular >=4-payment detected streams; they are not known generator corruption probabilities. The mask estimate uses a 4/3 adjustment because monthly plan is both a mobile name and a generic mask.
+Statistics are conditioned on the final parser and regular >=4-payment detected streams; they are not exact noise rates in the data. The mask estimate uses a 4/3 adjustment because monthly plan is both a mobile name and a generic mask.
 
 | Split/view | Everyday mask | Everyday MCC mismatch | Subscription mask estimate | Family-MCC match | Affixed/truncated | Streams |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
