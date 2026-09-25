@@ -4,7 +4,7 @@ OUT ?= artifacts/run
 MODEL ?= artifacts/model.pkl
 JOBS ?= 8
 
-.PHONY: sync data lint test cv model submission all
+.PHONY: sync data lint test cv model submission all protocol
 
 sync:
 	uv sync --locked
@@ -36,3 +36,7 @@ submission: model
 all:
 	@test -n "$(DATA_DIR)" || (echo "Set DATA_DIR or UBS_DATA_DIR"; exit 2)
 	uv run ubs-forecast all --data "$(DATA_DIR)" --output "$(OUT)" --jobs "$(JOBS)"
+
+protocol:
+	@test -n "$(DATA_DIR)" || (echo "Set DATA_DIR or UBS_DATA_DIR"; exit 2)
+	uv run ubs-forecast ensemble --data "$(DATA_DIR)" --output "$(OUT)" --jobs "$(JOBS)"

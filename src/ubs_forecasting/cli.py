@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .calibration import calibration_report, write_calibration_report
 from .data import load_labels, validate_data_directory, validate_dataset_relationships
+from .ensemble import run_ensemble
 from .interpretability import write_interpretability_artifacts
 from .model import load_model, save_model
 from .pipeline import (
@@ -76,6 +77,13 @@ def build_parser() -> argparse.ArgumentParser:
     all_steps.add_argument("--fold-seeds", type=_fold_seeds, default=(0, 17))
     all_steps.add_argument("--bootstrap-samples", type=int, default=2000)
     all_steps.add_argument("--skip-ablations", action="store_true")
+
+    ensemble = subparsers.add_parser("ensemble", help="protocol CV, lockbox, and blended submission")
+    _common_data_arguments(ensemble)
+    ensemble.add_argument("--output", type=Path, required=True)
+    ensemble.add_argument("--fold-seeds", type=_fold_seeds, default=(0, 1, 2))
+    ensemble.add_argument("--components", default=None, help="comma-separated subset of component names")
+    ensemble.add_argument("--skip-cv", action="store_true", help="only refit on development and predict")
     return parser
 
 
@@ -105,6 +113,18 @@ def main(argv: list[str] | None = None) -> None:
         _, probabilities = predict_and_write(bundle, tables["test"], data_dir, args.output)
         write_interpretability_artifacts(bundle, tables["test"], probabilities, args.output)
         write_run_metadata(args.output, data_dir)
+        return
+
+    if args.command == "ensemble":
+        components = [name.strip() for name in args.components.split(",")] if args.components else None
+        run_ensemble(
+            data_dir,
+            args.output,
+            component_names=components,
+            fold_seeds=args.fold_seeds,
+            jobs=args.jobs,
+            skip_cv=args.skip_cv,
+        )
         return
 
     amount_prior = learn_prior(data_dir)

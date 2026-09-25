@@ -175,3 +175,104 @@ def load_model(path: str | Path) -> ModelBundle:
     if not isinstance(bundle, ModelBundle):
         raise TypeError(f"not a UBS forecasting model bundle: {path}")
     return bundle
+
+
+# ----------------------------------------------------------------------------- listwise softmax
+
+NONE_FAMILY_ID = len(FAMILIES)
+SUMMARY_FEATURES = ("x_max_prob", "x_max_n", "x_min_next", "x_n_fam", "x_max_active")
+
+
+def candidate_rows(features: pd.DataFrame) -> pd.DataFrame:
+    """Return eight contiguous candidate rows per client: seven families plus ``none``.
+
+    The ``none`` row carries only the client-level ``c_*`` features. Every row additionally receives
+    label-free client summaries of the family candidates so the shared scorer can compare a row
+    against the strongest competing evidence of the same client.
+    """
+
+    client_columns = [column for column in features.columns if column.startswith("c_")]
+    none_rows = features.groupby("client_id", sort=True)[client_columns].first().reset_index()
+    none_rows["family"] = "none"
+    none_rows["family_id"] = NONE_FAMILY_ID
+    summary = features.groupby("client_id").agg(
+        x_max_prob=("p_prob", "max"),
+        x_max_n=("p_n", "max"),
+        x_min_next=("p_next", "min"),
+        x_n_fam=("n_streams", lambda values: float((values > 0).sum())),
+        x_max_active=("n_active", "max"),
+    )
+    long = pd.concat([features, none_rows], ignore_index=True).join(summary, on="client_id")
+    long = long.sort_values(["client_id", "family_id"], kind="stable").reset_index(drop=True)
+    if len(long) % len(CLASSES):
+        raise ValueError("candidate rows are not a multiple of the class count")
+    return long
+
+
+def softmax_objective(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per-client softmax cross-entropy over eight contiguous candidate rows."""
+
+    raw = y_pred.reshape(-1, len(CLASSES))
+    probabilities = np.exp(raw - raw.max(axis=1, keepdims=True))
+    probabilities /= probabilities.sum(axis=1, keepdims=True)
+    gradient = (probabilities - y_true.reshape(-1, len(CLASSES))).reshape(-1)
+    hessian = (probabilities * (1 - probabilities) + 1e-6).reshape(-1)
+    return gradient, hessian
+
+
+@dataclass
+class ListwiseBundle:
+    """Bagged listwise scorers plus their preprocessing contract."""
+
+    models: list[lgb.LGBMRegressor]
+    columns: list[str]
+    dropped_features: tuple[str, ...]
+    seeds: tuple[int, ...]
+    amount_prior: AmountPrior | None = None
+
+
+def fit_listwise(
+    train_tables: Sequence[TrainingTable],
+    *,
+    amount_prior: AmountPrior | None = None,
+    drop: Sequence[str] = (),
+    seeds: Sequence[int] = (0, 1, 2),
+    parameters: dict[str, Any] | None = None,
+) -> ListwiseBundle:
+    """Fit bagged listwise softmax scorers over eight candidate rows per client."""
+
+    if not train_tables:
+        raise ValueError("at least one training table is required")
+    parts = []
+    for features, labels in train_tables:
+        rows = candidate_rows(features)
+        parts.append(rows.assign(_y=rows.client_id.map(labels)))
+    long = pd.concat(parts, ignore_index=True)
+    columns = [column for column in long.columns if column not in ("client_id", "family", "_y") and column not in drop]
+    target = (long.family == long._y).astype(int).to_numpy()
+    model_parameters = {**(DEFAULT_PARAMETERS if parameters is None else parameters)}
+    model_parameters.pop("objective", None)
+    models = []
+    for seed in seeds:
+        model = lgb.LGBMRegressor(**model_parameters, objective=softmax_objective, random_state=seed)
+        model.fit(long[columns], target, categorical_feature=["family_id"])
+        models.append(model)
+    return ListwiseBundle(
+        models=models, columns=columns, dropped_features=tuple(drop), seeds=tuple(seeds), amount_prior=amount_prior
+    )
+
+
+def predict_listwise(bundle: ListwiseBundle, features: pd.DataFrame) -> pd.DataFrame:
+    """Average the per-client softmax over bagged scorers."""
+
+    long = candidate_rows(features)
+    output: pd.DataFrame | int = 0
+    for model in bundle.models:
+        raw = model.predict(long[bundle.columns]).reshape(-1, len(CLASSES))
+        probabilities = np.exp(raw - raw.max(axis=1, keepdims=True))
+        probabilities /= probabilities.sum(axis=1, keepdims=True)
+        frame = pd.DataFrame(probabilities, index=long.client_id.to_numpy()[:: len(CLASSES)], columns=list(CLASSES))
+        output = output + frame / len(bundle.models)
+    assert isinstance(output, pd.DataFrame)
+    output.index.name = "client_id"
+    return output
